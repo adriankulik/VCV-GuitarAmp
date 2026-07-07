@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="380">
+
+  <!-- Background -->
+  <rect width="300" height="380" fill="{{BG_PANEL}}"/>
+
+  <!-- Screw holes -->
+  <circle cx="15"  cy="15"  r="4" fill="{{COL_SCREW}}"/>
+  <circle cx="285" cy="15"  r="4" fill="{{COL_SCREW}}"/>
+  <circle cx="15"  cy="365" r="4" fill="{{COL_SCREW}}"/>
+  <circle cx="285" cy="365" r="4" fill="{{COL_SCREW}}"/>
+
+  <!-- Section backgrounds (text labels are drawn in C++ via NanoVG) -->
+  <rect x="6" y="18"  width="288" height="75" rx="3" fill="{{BG_GATE}}"  opacity="{{BG_SECTION_OPACITY}}"/>
+  <rect x="6" y="97"  width="288" height="74" rx="3" fill="{{BG_DRIVE}}" opacity="{{BG_SECTION_OPACITY}}"/>
+  <rect x="6" y="174" width="288" height="66" rx="3" fill="{{BG_EQ}}"    opacity="{{BG_SECTION_OPACITY}}"/>
+  <rect x="6" y="274" width="288" height="60" rx="3" fill="{{BG_CAB}}"   opacity="{{BG_SECTION_OPACITY}}"/>
+
+  <!-- Port divider -->
+  <line x1="6" y1="338" x2="294" y2="338" stroke="{{COL_DIVIDER}}" stroke-width="1"/>
+
+</svg>
