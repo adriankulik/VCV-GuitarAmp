@@ -140,7 +140,9 @@ build/src/GuitarFX.cpp.o: src/GuitarFX.cpp src/plugin.hpp \
   /Users/adriankulik/rack-sdk-2/Rack-SDK/include/dsp/filter.hpp \
   /Users/adriankulik/rack-sdk-2/Rack-SDK/include/dsp/digital.hpp \
   /Users/adriankulik/rack-sdk-2/Rack-SDK/include/dsp/vumeter.hpp \
-  /Users/adriankulik/rack-sdk-2/Rack-SDK/include/dsp/convert.hpp
+  /Users/adriankulik/rack-sdk-2/Rack-SDK/include/dsp/convert.hpp \
+  src/Biquad.hpp src/CabinetSim.hpp src/Drive.hpp src/NoiseGate.hpp \
+  src/Shimmer.hpp
 src/plugin.hpp:
 /Users/adriankulik/rack-sdk-2/Rack-SDK/include/rack.hpp:
 /Users/adriankulik/rack-sdk-2/Rack-SDK/include/common.hpp:
@@ -284,3 +286,8 @@ src/plugin.hpp:
 /Users/adriankulik/rack-sdk-2/Rack-SDK/include/dsp/digital.hpp:
 /Users/adriankulik/rack-sdk-2/Rack-SDK/include/dsp/vumeter.hpp:
 /Users/adriankulik/rack-sdk-2/Rack-SDK/include/dsp/convert.hpp:
+src/Biquad.hpp:
+src/CabinetSim.hpp:
+src/Drive.hpp:
+src/NoiseGate.hpp:
+src/Shimmer.hpp:

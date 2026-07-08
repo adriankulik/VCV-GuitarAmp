@@ -1,6 +1,17 @@
-# Adrian Kulik Guitar Interface — VCV Rack 2 Plugin
+# Guitar Amp & Effects — VCV Rack 2 Plugin
 
 Guitar pickup processor module for VCV Rack 2. Includes noise gate, overdrive/distortion/fuzz, 3-band EQ, and cabinet simulation.
+
+---
+
+## Installation
+
+1. Download the latest `.vcvplugin` release from the [Releases page](https://github.com/adriankulik/vcv-rack-guitar-interface/releases).
+2. Open VCV Rack 2.
+3. In the top menu, go to **Help > Open user folder** (or locate your Rack 2 folder manually, e.g., `~/Documents/Rack2` on macOS/Windows, or `~/.Rack2` on Linux).
+4. Move the downloaded `.vcvplugin` file into the `plugins-mac-arm64` / `plugins-mac-x64` / `plugins-win-x64` (depending on your OS) folder within your VCV Rack user folder.
+5. Restart VCV Rack 2.
+6. Right-click the rack → Add Module → Search for **Guitar Amp & Effects**.
 
 ---
 
@@ -55,7 +66,7 @@ cp dist/*.vcvplugin ~/Documents/Rack2/plugins-mac-arm64/
 > does not read. The manual `cp` puts it where VCV Rack Free actually looks:
 > `~/Documents/Rack2/plugins-mac-arm64/`.
 
-Then restart VCV Rack 2. Right-click the rack → Add Module → search **Guitar FX**.
+Then restart VCV Rack 2. Right-click the rack → Add Module → search **Guitar Amp & Effects**.
 
 ### Shortcut: build script
 
@@ -115,6 +126,7 @@ vcv rack guitar interface/
 Audio In → Noise Gate → Waveshaper (Overdrive / Distortion / Fuzz)
          → 3-Band EQ (Bass / Mid / Treble)
          → Cabinet Sim (filter approximation)
+         → Shimmer Reverb (Pitch-shifted feedback delay + Tone filter)
          → Volume → Audio Out
                   → Gate CV Out (10V when gate is open)
 ```
