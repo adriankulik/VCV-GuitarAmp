@@ -1,0 +1,22 @@
+name: PR Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  test:
+    name: Run DSP Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Compile and run DSP tests
+        run: |
+          mkdir -p build_tests
+          g++ -std=c++11 -Wall -Wextra tests/test_dsp.cpp -o build_tests/test_dsp
+          ./build_tests/test_dsp
+
+      - name: Build VCV Rack Plugin
+        uses: vcvrack/plugin-build-action@v2

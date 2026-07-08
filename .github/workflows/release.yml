@@ -1,0 +1,75 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Plugin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0 # Fetch all history for commit message parsing
+
+      - name: Bump Version
+        id: bump
+        run: |
+          MSG=$(git log -1 --pretty=%B)
+          if [[ "$MSG" == *"[skip release]"* ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          CUR_VERSION=$(jq -r '.version' plugin.json)
+          IFS='.' read -r major minor patch <<< "$CUR_VERSION"
+          
+          if echo "$MSG" | grep -iqE "breaking change|!:"; then
+            major=$((major + 1))
+            minor=0
+            patch=0
+          elif echo "$MSG" | grep -iqE "^feat:|^feat\("; then
+            minor=$((minor + 1))
+            patch=0
+          elif echo "$MSG" | grep -iqE "^fix:|^fix\("; then
+            patch=$((patch + 1))
+          elif echo "$MSG" | grep -iqE "^chore:|^chore\("; then
+            echo "Chore commit detected, skipping release."
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            patch=$((patch + 1))
+          fi
+          
+          NEW_VERSION="${major}.${minor}.${patch}"
+          echo "Bumping version from $CUR_VERSION to $NEW_VERSION"
+          jq --arg v "$NEW_VERSION" '.version = $v' plugin.json > tmp.json && mv tmp.json plugin.json
+          
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: bump version to $NEW_VERSION [skip ci]" || echo "No changes to commit"
+          git push
+          
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "skip=false" >> $GITHUB_OUTPUT
+
+      - name: Build VCV Rack Plugin
+        if: steps.bump.outputs.skip == 'false'
+        uses: vcvrack/plugin-build-action@v2
+
+      - name: Create Release
+        if: steps.bump.outputs.skip == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.bump.outputs.NEW_VERSION }}
+          name: Release v${{ steps.bump.outputs.NEW_VERSION }}
+          files: dist/*.vcvplugin
+          generate_release_notes: true

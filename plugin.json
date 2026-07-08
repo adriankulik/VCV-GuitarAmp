@@ -1,6 +1,6 @@
 {
-  "slug": "AdrianKulikGuitarInterface",
-  "name": "Adrian Kulik Guitar Interface",
+  "slug": "AdrianKulik",
+  "name": "AdrianKulik",
   "version": "2.0.0",
   "license": "MIT",
   "brand": "Adrian Kulik",
@@ -14,10 +14,10 @@
   "changelogUrl": "",
   "modules": [
     {
-      "slug": "GuitarFX",
-      "name": "Guitar Interface",
-      "description": "Guitar pickup processor: distortion, fuzz, noise gate, EQ, cabinet sim",
-      "tags": ["Effect", "Distortion", "Equalizer", "Dynamics"]
+      "slug": "GuitarAmpEffects",
+      "name": "Guitar Amp & Effects",
+      "description": "Guitar amp and effect eurorack for VCV Rack: amp sim, cabinet, distortion, fuzz, shimmer, noise gate, EQ",
+      "tags": ["Effect", "Distortion", "Equalizer", "Dynamics", "Reverb"]
     }
   ]
 }
