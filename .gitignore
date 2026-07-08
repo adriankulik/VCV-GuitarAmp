@@ -2,6 +2,7 @@
 build/
 build_tests/
 dist/
+dep/
 *.dylib
 *.so
 *.dll
