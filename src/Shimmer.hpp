@@ -15,12 +15,15 @@ struct Shimmer {
     float phase = 0.f;
     float feedback = 0.6f;
     float lastOut = 0.f;
+    float currentDelaySamples = 0.f;
+    float peakEnv = 0.f;
+    float attackState = 0.f;
     
     float sampleRate = 44100.f;
 
     void setSampleRate(float sr) {
         sampleRate = sr;
-        buffer.assign((size_t)(sr * 0.2f), 0.f); 
+        buffer.assign((size_t)(sr * 4.0f), 0.f); 
     }
     
     void reset() {
@@ -28,14 +31,38 @@ struct Shimmer {
         writePos = 0;
         phase = 0.f;
         lastOut = 0.f;
+        currentDelaySamples = 0.f;
+        peakEnv = 0.f;
+        attackState = 0.f;
     }
 
-    float process(float in, float shimmerMix, float decay, float tone) {
+    float process(float in, float shimmerMix, float decay, float tone, float delaySamples, float attackTime) {
         if (buffer.empty()) return in;
 
         int size = buffer.size();
         
-        buffer[writePos] = in + lastOut * decay;
+        currentDelaySamples += 0.005f * (delaySamples - currentDelaySamples);
+        
+        // Swell envelope processing
+        float absIn = std::abs(in);
+        if (absIn > peakEnv) peakEnv += 0.1f * (absIn - peakEnv);
+        else peakEnv += 0.00005f * (absIn - peakEnv);
+        
+        float attackCoef = (attackTime < 0.001f) ? 1.0f : 1.0f / (attackTime * sampleRate);
+        if (peakEnv > attackState) {
+            attackState += attackCoef * (peakEnv - attackState);
+        } else {
+            attackState += 0.001f * (peakEnv - attackState);
+        }
+        
+        float swellMult = 1.0f;
+        if (peakEnv > 0.0001f) {
+            swellMult = attackState / peakEnv;
+        }
+        
+        float shimmerIn = in * swellMult;
+        
+        buffer[writePos] = shimmerIn + lastOut * decay;
         
         // grain length = 50ms
         float grainSize = sampleRate * 0.05f;
@@ -46,7 +73,7 @@ struct Shimmer {
         
         auto getReadPos = [&](float p) {
             float distance = (1.0f - p) * grainSize; // from grainSize down to 0
-            float readPos = writePos - distance;
+            float readPos = writePos - currentDelaySamples - distance;
             while (readPos < 0) readPos += size;
             while (readPos >= size) readPos -= size;
             return readPos;

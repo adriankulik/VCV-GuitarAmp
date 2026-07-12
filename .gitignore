@@ -26,3 +26,6 @@ Rack-SDK/
 # Misc
 tmp/
 *.log
+
+# Test binaries
+test_dsp

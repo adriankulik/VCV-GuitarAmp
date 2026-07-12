@@ -34,12 +34,15 @@ struct GuitarAmp : Module {
         SHIMMER_MIX_PARAM,
         SHIMMER_DECAY_PARAM,
         SHIMMER_TONE_PARAM,
+        SHIMMER_DELAY_PARAM,
+        SHIMMER_ATTACK_PARAM,
         // Output
         VOLUME_PARAM,
         PARAMS_LEN
     };
     enum InputId {
         AUDIO_INPUT,
+        CLOCK_INPUT,
         INPUTS_LEN
     };
     enum OutputId {
@@ -52,6 +55,28 @@ struct GuitarAmp : Module {
         LIGHTS_LEN
     };
 
+    struct DelayParamQuantity : ParamQuantity {
+        std::string getDisplayValueString() override {
+            GuitarAmp* amp = dynamic_cast<GuitarAmp*>(module);
+            if (amp && amp->inputs[CLOCK_INPUT].isConnected()) {
+                float val = getValue();
+                int idx = clamp((int)(val * 11.999f), 0, 11);
+                const char* names[] = {"1/16", "1/8T", "1/16D", "1/8", "1/4T", "1/8D", "1/4", "1/2T", "1/4D", "1/2", "1/2D", "1/1"};
+                return std::string(names[idx]);
+            } else {
+                return string::f("%.0f", getValue() * 3000.f);
+            }
+        }
+        std::string getUnit() override {
+            GuitarAmp* amp = dynamic_cast<GuitarAmp*>(module);
+            if (amp && amp->inputs[CLOCK_INPUT].isConnected()) {
+                return "";
+            } else {
+                return " ms";
+            }
+        }
+    };
+
     // DSP objects — one per polyphonic channel (max 16 in Rack)
     static constexpr int MAX_CHANNELS = 16;
     NoiseGate gate[MAX_CHANNELS];
@@ -61,10 +86,18 @@ struct GuitarAmp : Module {
     CabinetSim cabinet[MAX_CHANNELS];
     Shimmer shimmer[MAX_CHANNELS];
 
+    dsp::SchmittTrigger clockTrigger[MAX_CHANNELS];
+    float clockTime[MAX_CHANNELS];
+    float lastClockPeriod[MAX_CHANNELS];
+
     float lastSampleRate = 0.f;
     dsp::ClockDivider eqDivider;
 
     GuitarAmp() {
+        for (int c = 0; c < MAX_CHANNELS; c++) {
+            clockTime[c] = 0.f;
+            lastClockPeriod[c] = 0.f;
+        }
         eqDivider.setDivision(32);
         config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 
@@ -91,11 +124,14 @@ struct GuitarAmp : Module {
         configParam(SHIMMER_MIX_PARAM, 0.f, 1.f, 0.f, "Shimmer Mix", "", 0, 100);
         configParam(SHIMMER_DECAY_PARAM, 0.f, 0.99f, 0.6f, "Shimmer Decay", "", 0, 100);
         configParam(SHIMMER_TONE_PARAM, 0.f, 1.f, 0.1f, "Shimmer Tone", "", 0, 100);
+        configParam<DelayParamQuantity>(SHIMMER_DELAY_PARAM, 0.f, 1.f, 0.f, "Shimmer Delay", "");
+        configParam(SHIMMER_ATTACK_PARAM, 0.f, 2.f, 0.f, "Shimmer Attack", " s");
 
         // Output
         configParam(VOLUME_PARAM, 0.f, 2.f, 1.f, "Volume", "", 0, 100);
 
         configInput(AUDIO_INPUT,   "Guitar audio");
+        configInput(CLOCK_INPUT,   "Clock for Shimmer Delay");
         configOutput(AUDIO_OUTPUT, "Processed audio");
         configOutput(GATE_CV_OUTPUT, "Gate CV (10V when open)");
     }
@@ -180,8 +216,33 @@ struct GuitarAmp : Module {
                 x = x + cabMix * (wet - x);
             }
 
+            // Calculate delay samples based on clock or absolute time
+            float delaySamples = 0.f;
+            if (inputs[CLOCK_INPUT].isConnected()) {
+                clockTime[c] += 1.f / sr;
+                float cv = inputs[CLOCK_INPUT].getChannels() == 1 ? inputs[CLOCK_INPUT].getVoltage(0) : inputs[CLOCK_INPUT].getVoltage(c);
+                if (clockTrigger[c].process(cv)) {
+                    lastClockPeriod[c] = clockTime[c];
+                    clockTime[c] = 0.f;
+                }
+                
+                float delayParam = params[SHIMMER_DELAY_PARAM].getValue(); // 0..1
+                const float multipliers[] = {0.25f, 1.f/3.f, 0.375f, 0.5f, 2.f/3.f, 0.75f, 1.0f, 4.f/3.f, 1.5f, 2.0f, 3.0f, 4.0f};
+                int idx = clamp((int)(delayParam * 11.999f), 0, 11);
+                float mult = multipliers[idx];
+                
+                delaySamples = lastClockPeriod[c] * mult * sr;
+            } else {
+                float delayParam = params[SHIMMER_DELAY_PARAM].getValue(); // 0..1
+                delaySamples = delayParam * 3.f * sr; 
+            }
+            float maxDelay = sr * 3.9f;
+            if (delaySamples > maxDelay) delaySamples = maxDelay;
+
+            float shimmerAttack = params[SHIMMER_ATTACK_PARAM].getValue();
+
             // 5. Shimmer
-            x = shimmer[c].process(x, shimmerMix, shimmerDecay, shimmerTone);
+            x = shimmer[c].process(x, shimmerMix, shimmerDecay, shimmerTone, delaySamples, shimmerAttack);
 
             // 6. Output volume
             outputs[AUDIO_OUTPUT].setVoltage(x * volume, c);
@@ -206,6 +267,8 @@ struct GuitarAmpWidget : ModuleWidget {
 
         // 3 columns across 20 HP (101.6 mm), all rows within 128.5 mm panel height
         const float c1 = 17.f, c2 = 50.8f, c3 = 84.f;
+        // 4 columns for Shimmer and Ports
+        const float s1 = 15.f, s2 = 39.f, s3 = 63.f, s4 = 87.f;
 
         // Gate (y = 16 mm, 30 mm)
         addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(c1, 16.f)), module, GuitarAmp::GATE_THRESH_PARAM));
@@ -218,10 +281,15 @@ struct GuitarAmpWidget : ModuleWidget {
         addParam(createParamCentered<RoundLargeBlackKnob>(mm2px(Vec(c1, 48.f)), module, GuitarAmp::DRIVE_PARAM));
         addParam(createParamCentered<CKSSThree>          (mm2px(Vec(c3, 48.f)), module, GuitarAmp::DRIVE_MODE_PARAM));
 
+        // 5 columns for Shimmer
+        const float k1 = 12.f, k2 = 31.4f, k3 = 50.8f, k4 = 70.2f, k5 = 89.6f;
+
         // Shimmer (y = 66 mm)
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(c1, 66.f)), module, GuitarAmp::SHIMMER_MIX_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(c2, 66.f)), module, GuitarAmp::SHIMMER_DECAY_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(c3, 66.f)), module, GuitarAmp::SHIMMER_TONE_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k1, 66.f)), module, GuitarAmp::SHIMMER_MIX_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k2, 66.f)), module, GuitarAmp::SHIMMER_DECAY_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k3, 66.f)), module, GuitarAmp::SHIMMER_TONE_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k4, 66.f)), module, GuitarAmp::SHIMMER_DELAY_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k5, 66.f)), module, GuitarAmp::SHIMMER_ATTACK_PARAM));
 
         // EQ (y = 84 mm)
         addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(c1, 84.f)), module, GuitarAmp::EQ_BASS_PARAM));
@@ -234,9 +302,10 @@ struct GuitarAmpWidget : ModuleWidget {
         addParam(createParamCentered<RoundLargeBlackKnob>(mm2px(Vec(c3, 102.f)), module, GuitarAmp::VOLUME_PARAM));
 
         // Ports (y = 120 mm)
-        addInput (createInputCentered<PJ301MPort>        (mm2px(Vec(c1, 120.f)), module, GuitarAmp::AUDIO_INPUT));
-        addOutput(createOutputCentered<PJ301MPort>       (mm2px(Vec(c2, 120.f)), module, GuitarAmp::GATE_CV_OUTPUT));
-        addOutput(createOutputCentered<PJ301MPort>       (mm2px(Vec(c3, 120.f)), module, GuitarAmp::AUDIO_OUTPUT));
+        addInput (createInputCentered<PJ301MPort>        (mm2px(Vec(s1, 120.f)), module, GuitarAmp::AUDIO_INPUT));
+        addInput (createInputCentered<PJ301MPort>        (mm2px(Vec(s2, 120.f)), module, GuitarAmp::CLOCK_INPUT));
+        addOutput(createOutputCentered<PJ301MPort>       (mm2px(Vec(s3, 120.f)), module, GuitarAmp::GATE_CV_OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>       (mm2px(Vec(s4, 120.f)), module, GuitarAmp::AUDIO_OUTPUT));
     }
 
     void draw(const DrawArgs& args) override {
@@ -281,9 +350,11 @@ struct GuitarAmpWidget : ModuleWidget {
 
         // Shimmer section
         label(11, 175, "SHIMMER", 7, nvgRGB(0xdd,0x66,0xaa), L);
-        label(x1, 206,"MIX",    6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(x2, 206,"DECAY",  6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(x3, 206,"TONE",   6,  nvgRGB(0xaa,0xaa,0xaa), C);
+        label(35,  206,"MIX",    6,  nvgRGB(0xaa,0xaa,0xaa), C);
+        label(93,  206,"DECAY",  6,  nvgRGB(0xaa,0xaa,0xaa), C);
+        label(150, 206,"TONE",   6,  nvgRGB(0xaa,0xaa,0xaa), C);
+        label(207, 206,"DELAY",  6,  nvgRGB(0xaa,0xaa,0xaa), C);
+        label(265, 206,"ATTACK", 6,  nvgRGB(0xaa,0xaa,0xaa), C);
 
         // EQ section
         label(11, 228,"EQ",     7,  nvgRGB(0x44,0x88,0xcc), L);
@@ -298,9 +369,10 @@ struct GuitarAmpWidget : ModuleWidget {
         label(x3, 313,"VOL",    6,  nvgRGB(0xaa,0xaa,0xaa), C);
 
         // Port labels
-        label(x1, 368,"IN",     6,  nvgRGB(0x88,0x88,0x88), C);
-        label(x2, 368,"GATE",   6,  nvgRGB(0x88,0x88,0x88), C);
-        label(x3, 368,"OUT",    6,  nvgRGB(0x88,0x88,0x88), C);
+        label(44,  368,"IN",     6,  nvgRGB(0x88,0x88,0x88), C);
+        label(115, 368,"CLK",    6,  nvgRGB(0x88,0x88,0x88), C);
+        label(186, 368,"GATE",   6,  nvgRGB(0x88,0x88,0x88), C);
+        label(257, 368,"OUT",    6,  nvgRGB(0x88,0x88,0x88), C);
     }
 };
 

@@ -44,7 +44,7 @@ void testShimmer() {
     Shimmer shimmer;
     shimmer.setSampleRate(44100.f);
     // process(in, mix, decay, tone)
-    float out = shimmer.process(0.5f, 0.5f, 0.6f, 0.5f);
+    float out = shimmer.process(0.5f, 0.5f, 0.6f, 0.5f, 0.0f, 0.0f);
     assert(out != 0.f);
     std::cout << "Shimmer test passed." << std::endl;
 }
