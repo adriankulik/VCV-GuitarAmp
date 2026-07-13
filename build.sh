@@ -3,21 +3,6 @@ set -e
 
 cd "$(dirname "$0")"
 
-# ── 1. Generate SVG from template + theme ───────────────────────────────────
-source res/theme.sh
-
-SVG=res/GuitarAmp.svg
-cp res/GuitarAmp.svg.template "$SVG"
-
-for var in BG_PANEL BG_GATE BG_DRIVE BG_EQ BG_CAB BG_SECTION_OPACITY \
-           COL_TITLE COL_GATE COL_DRIVE COL_EQ COL_CAB \
-           COL_KNOB COL_PORT COL_DIVIDER COL_SCREW \
-           FONT_UI FONT_SIZE_TITLE FONT_SIZE_SECTION FONT_SIZE_LABEL; do
-    sed -i '' "s|{{${var}}}|${!var}|g" "$SVG"
-done
-
-echo "Generated $SVG"
-
 # ── 2. Compile and package ───────────────────────────────────────────────────
 RACK_DIR=~/rack-sdk-2/Rack-SDK make install
 
