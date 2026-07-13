@@ -52,6 +52,7 @@ struct GuitarAmp : Module {
     };
     enum LightId {
         GATE_LIGHT,
+        LOGO_LIGHT,
         LIGHTS_LEN
     };
 
@@ -92,6 +93,7 @@ struct GuitarAmp : Module {
 
     float lastSampleRate = 0.f;
     dsp::ClockDivider eqDivider;
+    float logoGlow = 0.f;
 
     GuitarAmp() {
         for (int c = 0; c < MAX_CHANNELS; c++) {
@@ -188,9 +190,11 @@ struct GuitarAmp : Module {
         outputs[GATE_CV_OUTPUT].setChannels(channels);
 
         bool anyGateOpen = false;
+        float peakInput = 0.f;
 
         for (int c = 0; c < channels; c++) {
             float x = inputs[AUDIO_INPUT].getVoltage(c);
+            peakInput = std::max(peakInput, std::abs(x));
 
             // 1. Noise gate (before drive — quieter signal, cleaner gate)
             if (gateEnabled)
@@ -248,6 +252,10 @@ struct GuitarAmp : Module {
             outputs[AUDIO_OUTPUT].setVoltage(x * volume, c);
         }
 
+        // Smoothly glow the logo based on the peak input signal (scaled to roughly 0..1 range)
+        logoGlow += (peakInput / 4.f - logoGlow) * 0.005f; // very smooth response
+        lights[LOGO_LIGHT].setBrightness(clamp(logoGlow, 0.f, 1.f));
+
         lights[GATE_LIGHT].setBrightness(anyGateOpen ? 1.f : 0.f);
     }
 };
@@ -255,57 +263,85 @@ struct GuitarAmp : Module {
 // ---------------------------------------------------------------------------
 // Panel / UI
 // ---------------------------------------------------------------------------
+
+struct LogoWidget : SvgWidget {
+    GuitarAmp* module;
+    LogoWidget(GuitarAmp* module) {
+        this->module = module;
+        setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/LogoLight.svg")));
+    }
+    void draw(const DrawArgs& args) override {
+        if (!module) return;
+        float b = module->lights[GuitarAmp::LOGO_LIGHT].getBrightness();
+        if (b <= 0.01f) return;
+        nvgSave(args.vg);
+        nvgGlobalAlpha(args.vg, b);
+        SvgWidget::draw(args);
+        nvgRestore(args.vg);
+    }
+};
+
 struct GuitarAmpWidget : ModuleWidget {
     GuitarAmpWidget(GuitarAmp* module) {
         setModule(module);
         setPanel(createPanel(asset::plugin(pluginInstance, "res/GuitarAmp.svg")));
+
+        if (module) {
+            LogoWidget* logo = new LogoWidget(module);
+            logo->box.pos = Vec(0, 0);
+            addChild(logo);
+        }
 
         addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
         addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
         addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
         addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-        // 3 columns across 20 HP (101.6 mm), all rows within 128.5 mm panel height
-        const float c1 = 17.f, c2 = 50.8f, c3 = 84.f;
-        // 4 columns for Shimmer and Ports
-        const float s1 = 15.f, s2 = 39.f, s3 = 63.f, s4 = 87.f;
+        const float Y_PORTS = 14.0f;
+        const float Y_GATE = 31.0f;
+        const float Y_DRIVE = 49.4f;
+        const float Y_SHIMMER = 68.6f;
+        const float Y_EQ = 87.3f;
+        const float Y_CAB = 106.0f;
 
-        // Gate (y = 16 mm, 30 mm)
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(c1, 16.f)), module, GuitarAmp::GATE_THRESH_PARAM));
-        addParam(createParamCentered<Trimpot>            (mm2px(Vec(c2, 16.f)), module, GuitarAmp::GATE_ATTACK_PARAM));
-        addParam(createParamCentered<Trimpot>            (mm2px(Vec(c3, 16.f)), module, GuitarAmp::GATE_RELEASE_PARAM));
-        addParam(createParamCentered<CKSS>               (mm2px(Vec(c1, 30.f)), module, GuitarAmp::GATE_ENABLE_PARAM));
-        addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(c1 + 6.f, 30.f)), module, GuitarAmp::GATE_LIGHT));
+        const float d1 = 25.4f, d2 = 76.2f;
+        const float e1 = 16.933f, e2 = 50.8f, e3 = 84.666f;
+        const float p1 = 12.7f, p2 = 38.1f, p3 = 63.5f, p4 = 88.9f;
+        const float k1 = 10.16f, k2 = 30.48f, k3 = 50.8f, k4 = 71.12f, k5 = 91.44f;
 
-        // Drive (y = 48 mm)
-        addParam(createParamCentered<RoundLargeBlackKnob>(mm2px(Vec(c1, 48.f)), module, GuitarAmp::DRIVE_PARAM));
-        addParam(createParamCentered<CKSSThree>          (mm2px(Vec(c3, 48.f)), module, GuitarAmp::DRIVE_MODE_PARAM));
+        // Ports
+        addInput (createInputCentered<PJ301MPort>        (mm2px(Vec(p1, Y_PORTS)), module, GuitarAmp::AUDIO_INPUT));
+        addInput (createInputCentered<PJ301MPort>        (mm2px(Vec(p2, Y_PORTS)), module, GuitarAmp::CLOCK_INPUT));
+        addOutput(createOutputCentered<PJ301MPort>       (mm2px(Vec(p3, Y_PORTS)), module, GuitarAmp::GATE_CV_OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>       (mm2px(Vec(p4, Y_PORTS)), module, GuitarAmp::AUDIO_OUTPUT));
 
-        // 5 columns for Shimmer
-        const float k1 = 12.f, k2 = 31.4f, k3 = 50.8f, k4 = 70.2f, k5 = 89.6f;
+        // Gate
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(p1, Y_GATE)), module, GuitarAmp::GATE_THRESH_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(p2, Y_GATE)), module, GuitarAmp::GATE_ATTACK_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(p3, Y_GATE)), module, GuitarAmp::GATE_RELEASE_PARAM));
+        addParam(createParamCentered<CKSS>               (mm2px(Vec(p4, Y_GATE)), module, GuitarAmp::GATE_ENABLE_PARAM));
+        addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(p4 + 5.0f, Y_GATE)), module, GuitarAmp::GATE_LIGHT));
 
-        // Shimmer (y = 66 mm)
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k1, 66.f)), module, GuitarAmp::SHIMMER_MIX_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k2, 66.f)), module, GuitarAmp::SHIMMER_DECAY_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k3, 66.f)), module, GuitarAmp::SHIMMER_TONE_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k4, 66.f)), module, GuitarAmp::SHIMMER_DELAY_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k5, 66.f)), module, GuitarAmp::SHIMMER_ATTACK_PARAM));
+        // Drive
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(d1, Y_DRIVE)), module, GuitarAmp::DRIVE_PARAM));
+        addParam(createParamCentered<CKSSThree>          (mm2px(Vec(d2, Y_DRIVE)), module, GuitarAmp::DRIVE_MODE_PARAM));
 
-        // EQ (y = 84 mm)
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(c1, 84.f)), module, GuitarAmp::EQ_BASS_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(c2, 84.f)), module, GuitarAmp::EQ_MID_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(c3, 84.f)), module, GuitarAmp::EQ_TREBLE_PARAM));
+        // Shimmer
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k1, Y_SHIMMER)), module, GuitarAmp::SHIMMER_MIX_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k2, Y_SHIMMER)), module, GuitarAmp::SHIMMER_DECAY_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k3, Y_SHIMMER)), module, GuitarAmp::SHIMMER_TONE_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k4, Y_SHIMMER)), module, GuitarAmp::SHIMMER_DELAY_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k5, Y_SHIMMER)), module, GuitarAmp::SHIMMER_ATTACK_PARAM));
 
-        // Cabinet + Volume (y = 102 mm)
-        addParam(createParamCentered<CKSS>               (mm2px(Vec(c1, 102.f)), module, GuitarAmp::CAB_ENABLE_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(c2, 102.f)), module, GuitarAmp::CAB_MIX_PARAM));
-        addParam(createParamCentered<RoundLargeBlackKnob>(mm2px(Vec(c3, 102.f)), module, GuitarAmp::VOLUME_PARAM));
+        // EQ
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(e1, Y_EQ)), module, GuitarAmp::EQ_BASS_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(e2, Y_EQ)), module, GuitarAmp::EQ_MID_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(e3, Y_EQ)), module, GuitarAmp::EQ_TREBLE_PARAM));
 
-        // Ports (y = 120 mm)
-        addInput (createInputCentered<PJ301MPort>        (mm2px(Vec(s1, 120.f)), module, GuitarAmp::AUDIO_INPUT));
-        addInput (createInputCentered<PJ301MPort>        (mm2px(Vec(s2, 120.f)), module, GuitarAmp::CLOCK_INPUT));
-        addOutput(createOutputCentered<PJ301MPort>       (mm2px(Vec(s3, 120.f)), module, GuitarAmp::GATE_CV_OUTPUT));
-        addOutput(createOutputCentered<PJ301MPort>       (mm2px(Vec(s4, 120.f)), module, GuitarAmp::AUDIO_OUTPUT));
+        // Cab & Vol
+        addParam(createParamCentered<CKSS>               (mm2px(Vec(e1, Y_CAB)), module, GuitarAmp::CAB_ENABLE_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(e2, Y_CAB)), module, GuitarAmp::CAB_MIX_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(e3, Y_CAB)), module, GuitarAmp::VOLUME_PARAM));
     }
 
     void draw(const DrawArgs& args) override {
@@ -326,53 +362,78 @@ struct GuitarAmpWidget : ModuleWidget {
             nvgText(vg, x, y, text, nullptr);
         };
 
-        // pixel x positions matching mm2px(c1/c2/c3)
-        const float x1 = 50.f, x2 = 150.f, x3 = 248.f;
         const int L = NVG_ALIGN_LEFT | NVG_ALIGN_TOP;
         const int C = NVG_ALIGN_CENTER | NVG_ALIGN_TOP;
+        const int R = NVG_ALIGN_RIGHT | NVG_ALIGN_MIDDLE;
+        
+        // Brighter gray for text
+        NVGcolor textColor = nvgRGB(0xAA, 0xAA, 0xAA);
+
+        // Helper lambda to convert mm to px for perfectly aligned text
+        auto px = [](float mm) { return mm * 2.834645669f; };
+
+        // X coordinates in px
+        const float d1 = px(25.4f), d2 = px(76.2f);
+        const float e1 = px(16.933f), e2 = px(50.8f), e3 = px(84.666f);
+        const float p1 = px(12.7f), p2 = px(38.1f), p3 = px(63.5f), p4 = px(88.9f);
+        const float k1 = px(10.16f), k2 = px(30.48f), k3 = px(50.8f), k4 = px(71.12f), k5 = px(91.44f);
+
+        // Y coordinates for labels (slightly below the knobs)
+        const float yPortsL = px(14.0f) + 16.f;
+        const float yGateL = px(31.0f) + 16.f;
+        const float yDriveL = px(49.4f) + 16.f;
+        const float yShimmerL = px(68.6f) + 16.f;
+        const float yEqL = px(87.3f) + 16.f;
+        const float yCabL = px(106.0f) + 16.f;
+
+        const float sizeTitle = 11.5f;
+        const float sizeSection = 8.5f;
+        const float sizeLabel = 7.5f;
 
         // Title
-        label(x2, 3,  "AMP & EFFECTS", 9,  nvgRGB(0xdd,0xdd,0xdd), C);
+        label(px(50.8f), 3, "Guitar Amp", sizeTitle, textColor, C);
 
-        // Gate section
-        label(11, 20, "GATE",   7,  nvgRGB(0x66,0xcc,0x66), L);
-        label(x1, 60, "THRESH", 6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(x2, 60, "ATK",    6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(x3, 60, "REL",    6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(x1, 100,"ENABLE", 6,  nvgRGB(0xaa,0xaa,0xaa), C);
+        // Box 1
+        label(14, 20, "PORTS", sizeSection, textColor, L);
+        label(p1, yPortsL, "IN", sizeLabel, textColor, C);
+        label(p2, yPortsL, "CLK", sizeLabel, textColor, C);
+        label(p3, yPortsL, "GATE", sizeLabel, textColor, C);
+        label(p4, yPortsL, "OUT", sizeLabel, textColor, C);
 
-        // Drive section
-        label(11, 120, "DRIVE",  7,  nvgRGB(0xcc,0x77,0x44), L);
-        label(x1, 153,"DRIVE",  6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(x3, 137,"OD",     6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(x3, 153,"DIS",    6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(x3, 169,"FUZ",    6,  nvgRGB(0xaa,0xaa,0xaa), C);
+        label(14, 66, "GATE", sizeSection, textColor, L);
+        label(p1, yGateL, "THRESH", sizeLabel, textColor, C);
+        label(p2, yGateL, "ATK", sizeLabel, textColor, C);
+        label(p3, yGateL, "REL", sizeLabel, textColor, C);
+        label(p4, yGateL, "ENABLE", sizeLabel, textColor, C);
 
-        // Shimmer section
-        label(11, 175, "SHIMMER", 7, nvgRGB(0xdd,0x66,0xaa), L);
-        label(35,  206,"MIX",    6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(93,  206,"DECAY",  6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(150, 206,"TONE",   6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(207, 206,"DELAY",  6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(265, 206,"ATTACK", 6,  nvgRGB(0xaa,0xaa,0xaa), C);
+        // Box 2
+        label(14, 120, "DRIVE", sizeSection, textColor, L);
+        label(d1, yDriveL, "DRIVE", sizeLabel, textColor, C);
+        // Drive switch labels (aligned vertically next to the switch)
+        float d2y = px(49.4f);
+        label(d2 - 12, d2y - 12, "OD", sizeLabel, textColor, R);
+        label(d2 - 12, d2y,      "DIS", sizeLabel, textColor, R);
+        label(d2 - 12, d2y + 12, "FUZ", sizeLabel, textColor, R);
 
-        // EQ section
-        label(11, 228,"EQ",     7,  nvgRGB(0x44,0x88,0xcc), L);
-        label(x1, 258,"BASS",   6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(x2, 258,"MID",    6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(x3, 258,"TREBLE", 6,  nvgRGB(0xaa,0xaa,0xaa), C);
+        // Box 3
+        label(14, 176, "SHIMMER", sizeSection, textColor, L);
+        label(k1, yShimmerL, "MIX", sizeLabel, textColor, C);
+        label(k2, yShimmerL, "DECAY", sizeLabel, textColor, C);
+        label(k3, yShimmerL, "TONE", sizeLabel, textColor, C);
+        label(k4, yShimmerL, "DELAY", sizeLabel, textColor, C);
+        label(k5, yShimmerL, "ATTACK", sizeLabel, textColor, C);
 
-        // Cab · Vol section
-        label(11, 281,"CAB · VOL", 7, nvgRGB(0x99,0x66,0xcc), L);
-        label(x1, 313,"CAB",    6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(x2, 313,"MIX",    6,  nvgRGB(0xaa,0xaa,0xaa), C);
-        label(x3, 313,"VOL",    6,  nvgRGB(0xaa,0xaa,0xaa), C);
+        // Box 4
+        label(14, 229, "EQ", sizeSection, textColor, L);
+        label(e1, yEqL, "BASS", sizeLabel, textColor, C);
+        label(e2, yEqL, "MID", sizeLabel, textColor, C);
+        label(e3, yEqL, "TREBLE", sizeLabel, textColor, C);
 
-        // Port labels
-        label(44,  368,"IN",     6,  nvgRGB(0x88,0x88,0x88), C);
-        label(115, 368,"CLK",    6,  nvgRGB(0x88,0x88,0x88), C);
-        label(186, 368,"GATE",   6,  nvgRGB(0x88,0x88,0x88), C);
-        label(257, 368,"OUT",    6,  nvgRGB(0x88,0x88,0x88), C);
+        // Box 5
+        label(14, 282, "CAB · VOL", sizeSection, textColor, L);
+        label(e1, yCabL, "CAB", sizeLabel, textColor, C);
+        label(e2, yCabL, "MIX", sizeLabel, textColor, C);
+        label(e3, yCabL, "VOL", sizeLabel, textColor, C);
     }
 };
 
