@@ -15,8 +15,11 @@ jobs:
       - name: Compile and run DSP tests
         run: |
           mkdir -p build_tests
-          g++ -std=c++11 -Wall -Wextra tests/test_dsp.cpp -o build_tests/test_dsp
-          ./build_tests/test_dsp
+          for test_file in tests/*.cpp; do
+            base_name=$(basename "$test_file" .cpp)
+            g++ -std=c++11 -Wall -Wextra "$test_file" -o "build_tests/$base_name"
+            "./build_tests/$base_name"
+          done
 
       - name: Build VCV Rack Plugin
         run: |
