@@ -1,4 +1,4 @@
-# Guitar Amp & Effects — VCV Rack 2 Plugin
+# Guitar Amp & Effects Plugin
 
 Guitar pickup processor module for VCV Rack 2. Includes noise gate, overdrive/distortion/fuzz, 3-band EQ, and cabinet simulation.
 
