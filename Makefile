@@ -1,5 +1,5 @@
 # Plugin name must match the slug in plugin.json
-SLUG = GuitarAmpAndEffects
+SLUG = GuitarAmp
 
 # Rack SDK path — set RACK_DIR to wherever you installed/cloned the Rack SDK
 # e.g. export RACK_DIR=~/Documents/Rack2/sdk
