@@ -297,143 +297,47 @@ struct GuitarAmpWidget : ModuleWidget {
         addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
         addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-        const float Y_PORTS = 14.0f;
-        const float Y_GATE = 31.0f;
-        const float Y_DRIVE = 49.4f;
-        const float Y_SHIMMER = 68.6f;
-        const float Y_EQ = 87.3f;
-        const float Y_CAB = 106.0f;
+        // Y coordinates (mm)
+        const float Y_IO      = 43.0f;
+        const float Y_GATE    = 97.5f;
+        const float Y_DRIVE   = 153.0f;
+        const float Y_SHIMMER = 209.0f;
+        const float Y_EQ      = 266.0f;
+        const float Y_CAB     = 321.0f;
 
-        const float d1 = 25.4f, d2 = 76.2f;
-        const float e1 = 16.933f, e2 = 50.8f, e3 = 84.666f;
-        const float p1 = 12.7f, p2 = 38.1f, p3 = 63.5f, p4 = 88.9f;
-        const float k1 = 10.16f, k2 = 30.48f, k3 = 50.8f, k4 = 71.12f, k5 = 91.44f;
+        // I/O (Input, Clock, Output)
+        addInput (createInputCentered<PJ301MPort>  (Vec(55.0f, Y_IO), module, GuitarAmp::AUDIO_INPUT));
+        addInput (createInputCentered<PJ301MPort>  (Vec(144.0f, Y_IO), module, GuitarAmp::CLOCK_INPUT));
+        addOutput(createOutputCentered<PJ301MPort> (Vec(235.0f, Y_IO), module, GuitarAmp::AUDIO_OUTPUT));
 
-        // Ports
-        addInput (createInputCentered<PJ301MPort>        (mm2px(Vec(p1, Y_PORTS)), module, GuitarAmp::AUDIO_INPUT));
-        addInput (createInputCentered<PJ301MPort>        (mm2px(Vec(p2, Y_PORTS)), module, GuitarAmp::CLOCK_INPUT));
-        addOutput(createOutputCentered<PJ301MPort>       (mm2px(Vec(p3, Y_PORTS)), module, GuitarAmp::GATE_CV_OUTPUT));
-        addOutput(createOutputCentered<PJ301MPort>       (mm2px(Vec(p4, Y_PORTS)), module, GuitarAmp::AUDIO_OUTPUT));
+        // GATE (Switch, Thresh, Attack, Release, Output)
+        addParam(createParamCentered<CKSS>         (Vec(40.0f, Y_GATE), module, GuitarAmp::GATE_ENABLE_PARAM));
+        addChild(createLightCentered<SmallLight<GreenLight>>(Vec(26.0f, Y_GATE), module, GuitarAmp::GATE_LIGHT));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(81.0f, Y_GATE), module, GuitarAmp::GATE_THRESH_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(136.0f, Y_GATE), module, GuitarAmp::GATE_ATTACK_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(192.0f, Y_GATE), module, GuitarAmp::GATE_RELEASE_PARAM));
+        addOutput(createOutputCentered<PJ301MPort>  (Vec(244.0f, Y_GATE), module, GuitarAmp::GATE_CV_OUTPUT));
 
-        // Gate
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(p1, Y_GATE)), module, GuitarAmp::GATE_THRESH_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(p2, Y_GATE)), module, GuitarAmp::GATE_ATTACK_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(p3, Y_GATE)), module, GuitarAmp::GATE_RELEASE_PARAM));
-        addParam(createParamCentered<CKSS>               (mm2px(Vec(p4, Y_GATE)), module, GuitarAmp::GATE_ENABLE_PARAM));
-        addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(p4 + 5.0f, Y_GATE)), module, GuitarAmp::GATE_LIGHT));
+        // DRIVE (Mix, Mode)
+        addParam(createParamCentered<RoundBlackKnob>(Vec(80.0f, Y_DRIVE), module, GuitarAmp::DRIVE_PARAM));
+        addParam(createParamCentered<CKSSThree>    (Vec(225.0f, Y_DRIVE), module, GuitarAmp::DRIVE_MODE_PARAM));
 
-        // Drive
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(d1, Y_DRIVE)), module, GuitarAmp::DRIVE_PARAM));
-        addParam(createParamCentered<CKSSThree>          (mm2px(Vec(d2, Y_DRIVE)), module, GuitarAmp::DRIVE_MODE_PARAM));
+        // SHIMMER (Mix, Tone, Attack, Decay, Delay)
+        addParam(createParamCentered<RoundBlackKnob>(Vec(26.0f, Y_SHIMMER), module, GuitarAmp::SHIMMER_MIX_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(81.0f, Y_SHIMMER), module, GuitarAmp::SHIMMER_TONE_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(136.0f, Y_SHIMMER), module, GuitarAmp::SHIMMER_ATTACK_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(190.0f, Y_SHIMMER), module, GuitarAmp::SHIMMER_DECAY_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(244.0f, Y_SHIMMER), module, GuitarAmp::SHIMMER_DELAY_PARAM));
 
-        // Shimmer
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k1, Y_SHIMMER)), module, GuitarAmp::SHIMMER_MIX_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k2, Y_SHIMMER)), module, GuitarAmp::SHIMMER_DECAY_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k3, Y_SHIMMER)), module, GuitarAmp::SHIMMER_TONE_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k4, Y_SHIMMER)), module, GuitarAmp::SHIMMER_DELAY_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(k5, Y_SHIMMER)), module, GuitarAmp::SHIMMER_ATTACK_PARAM));
+        // EQ (Bass, Mid, Treble)
+        addParam(createParamCentered<RoundBlackKnob>(Vec(55.0f, Y_EQ), module, GuitarAmp::EQ_BASS_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(142.0f, Y_EQ), module, GuitarAmp::EQ_MID_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(235.0f, Y_EQ), module, GuitarAmp::EQ_TREBLE_PARAM));
 
-        // EQ
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(e1, Y_EQ)), module, GuitarAmp::EQ_BASS_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(e2, Y_EQ)), module, GuitarAmp::EQ_MID_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(e3, Y_EQ)), module, GuitarAmp::EQ_TREBLE_PARAM));
-
-        // Cab & Vol
-        addParam(createParamCentered<CKSS>               (mm2px(Vec(e1, Y_CAB)), module, GuitarAmp::CAB_ENABLE_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(e2, Y_CAB)), module, GuitarAmp::CAB_MIX_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>     (mm2px(Vec(e3, Y_CAB)), module, GuitarAmp::VOLUME_PARAM));
-    }
-
-    void draw(const DrawArgs& args) override {
-        ModuleWidget::draw(args);
-
-        std::shared_ptr<Font> font = APP->window->loadFont(
-            asset::system("res/fonts/Nunito-Bold.ttf"));
-        if (!font) return;
-
-        NVGcontext* vg = args.vg;
-        nvgFontFaceId(vg, font->handle);
-
-        auto label = [&](float x, float y, const char* text, float size,
-                         NVGcolor col, int align = NVG_ALIGN_CENTER | NVG_ALIGN_TOP) {
-            nvgFontSize(vg, size);
-            nvgTextAlign(vg, align);
-            nvgFillColor(vg, col);
-            nvgText(vg, x, y, text, nullptr);
-        };
-
-        const int L = NVG_ALIGN_LEFT | NVG_ALIGN_TOP;
-        const int C = NVG_ALIGN_CENTER | NVG_ALIGN_TOP;
-        const int R = NVG_ALIGN_RIGHT | NVG_ALIGN_MIDDLE;
-        
-        // Brighter gray for text
-        NVGcolor textColor = nvgRGB(0xAA, 0xAA, 0xAA);
-
-        // Helper lambda to convert mm to px for perfectly aligned text
-        auto px = [](float mm) { return mm * 2.834645669f; };
-
-        // X coordinates in px
-        const float d1 = px(25.4f), d2 = px(76.2f);
-        const float e1 = px(16.933f), e2 = px(50.8f), e3 = px(84.666f);
-        const float p1 = px(12.7f), p2 = px(38.1f), p3 = px(63.5f), p4 = px(88.9f);
-        const float k1 = px(10.16f), k2 = px(30.48f), k3 = px(50.8f), k4 = px(71.12f), k5 = px(91.44f);
-
-        // Y coordinates for labels (slightly below the knobs)
-        const float yPortsL = px(14.0f) + 16.f;
-        const float yGateL = px(31.0f) + 16.f;
-        const float yDriveL = px(49.4f) + 16.f;
-        const float yShimmerL = px(68.6f) + 16.f;
-        const float yEqL = px(87.3f) + 16.f;
-        const float yCabL = px(106.0f) + 16.f;
-
-        const float sizeTitle = 11.5f;
-        const float sizeSection = 8.5f;
-        const float sizeLabel = 7.5f;
-
-        // Title
-        label(px(50.8f), 3, "Guitar Amp", sizeTitle, textColor, C);
-
-        // Box 1
-        label(14, 20, "PORTS", sizeSection, textColor, L);
-        label(p1, yPortsL, "IN", sizeLabel, textColor, C);
-        label(p2, yPortsL, "CLK", sizeLabel, textColor, C);
-        label(p3, yPortsL, "GATE", sizeLabel, textColor, C);
-        label(p4, yPortsL, "OUT", sizeLabel, textColor, C);
-
-        label(14, 66, "GATE", sizeSection, textColor, L);
-        label(p1, yGateL, "THRESH", sizeLabel, textColor, C);
-        label(p2, yGateL, "ATK", sizeLabel, textColor, C);
-        label(p3, yGateL, "REL", sizeLabel, textColor, C);
-        label(p4, yGateL, "ENABLE", sizeLabel, textColor, C);
-
-        // Box 2
-        label(14, 120, "DRIVE", sizeSection, textColor, L);
-        label(d1, yDriveL, "DRIVE", sizeLabel, textColor, C);
-        // Drive switch labels (aligned vertically next to the switch)
-        float d2y = px(49.4f);
-        label(d2 - 12, d2y - 12, "OD", sizeLabel, textColor, R);
-        label(d2 - 12, d2y,      "DIS", sizeLabel, textColor, R);
-        label(d2 - 12, d2y + 12, "FUZ", sizeLabel, textColor, R);
-
-        // Box 3
-        label(14, 176, "SHIMMER", sizeSection, textColor, L);
-        label(k1, yShimmerL, "MIX", sizeLabel, textColor, C);
-        label(k2, yShimmerL, "DECAY", sizeLabel, textColor, C);
-        label(k3, yShimmerL, "TONE", sizeLabel, textColor, C);
-        label(k4, yShimmerL, "DELAY", sizeLabel, textColor, C);
-        label(k5, yShimmerL, "ATTACK", sizeLabel, textColor, C);
-
-        // Box 4
-        label(14, 229, "EQ", sizeSection, textColor, L);
-        label(e1, yEqL, "BASS", sizeLabel, textColor, C);
-        label(e2, yEqL, "MID", sizeLabel, textColor, C);
-        label(e3, yEqL, "TREBLE", sizeLabel, textColor, C);
-
-        // Box 5
-        label(14, 282, "CAB · VOL", sizeSection, textColor, L);
-        label(e1, yCabL, "CAB", sizeLabel, textColor, C);
-        label(e2, yCabL, "MIX", sizeLabel, textColor, C);
-        label(e3, yCabL, "VOL", sizeLabel, textColor, C);
+        // CAB (Switch, Mix, Vol)
+        addParam(createParamCentered<CKSS>         (Vec(54.0f, Y_CAB), module, GuitarAmp::CAB_ENABLE_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(144.0f, Y_CAB), module, GuitarAmp::CAB_MIX_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(235.0f, Y_CAB), module, GuitarAmp::VOLUME_PARAM));
     }
 };
 
