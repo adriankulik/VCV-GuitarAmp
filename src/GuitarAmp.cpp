@@ -291,30 +291,8 @@ struct LogoLight : GreenLight {
                 if (b <= 0.01f) return;
                 nvgSave(args.vg);
                 nvgGlobalCompositeBlendFunc(args.vg, NVG_SRC_ALPHA, NVG_ONE); // Additive
-                
-                // 1. Draw core bright SVG
-                nvgGlobalAlpha(args.vg, b * 0.85f);
+                nvgGlobalAlpha(args.vg, b);
                 SvgWidget::draw(args);
-
-                // 2. Draw tight inner glow (radius 3)
-                nvgGlobalAlpha(args.vg, b * 0.2f);
-                for (int i = 0; i < 8; i++) {
-                    float r = (i / 8.0f) * 2 * M_PI;
-                    nvgSave(args.vg);
-                    nvgTranslate(args.vg, std::cos(r) * 3.0f, std::sin(r) * 3.0f);
-                    SvgWidget::draw(args);
-                    nvgRestore(args.vg);
-                }
-
-                // 3. Draw pronounced outer glow (radius 7)
-                nvgGlobalAlpha(args.vg, b * 0.08f);
-                for (int i = 0; i < 8; i++) {
-                    float r = (i / 8.0f) * 2 * M_PI;
-                    nvgSave(args.vg);
-                    nvgTranslate(args.vg, std::cos(r) * 7.0f, std::sin(r) * 7.0f);
-                    SvgWidget::draw(args);
-                    nvgRestore(args.vg);
-                }
 
                 nvgRestore(args.vg);
             }
