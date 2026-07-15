@@ -74,7 +74,6 @@ struct Biquad {
     void setHighpass(float fc, float sampleRate) {
         float w0 = 2.f * M_PI * fc / sampleRate;
         float cosw = std::cos(w0);
-        float a0 = 1.f + (1.f - cosw) / 2.f;  // approximation; full biquad HP below
         // Proper 2nd-order Butterworth highpass
         float sinw = std::sin(w0);
         float alpha = sinw / (2.f * 0.7071f); // Q = 1/sqrt(2)
@@ -84,6 +83,5 @@ struct Biquad {
         b2 = b0;
         a1 = (-2.f * cosw) * ia0;
         a2 = (1.f - alpha) * ia0;
-        (void)a0; // suppress unused warning
     }
 };

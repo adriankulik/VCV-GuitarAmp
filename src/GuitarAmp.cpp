@@ -138,6 +138,22 @@ struct GuitarAmp : Module {
         configOutput(GATE_CV_OUTPUT, "Gate CV (10V when open)");
     }
 
+    void onReset() override {
+        for (int c = 0; c < MAX_CHANNELS; c++) {
+            gate[c].reset();
+            eqBass[c].reset();
+            eqMid[c].reset();
+            eqTreble[c].reset();
+            cabinet[c].reset();
+            shimmer[c].reset();
+            clockTrigger[c].reset();
+            clockTime[c] = 0.f;
+            lastClockPeriod[c] = 0.f;
+        }
+        logoGlow = 0.f;
+        lastSampleRate = 0.f;
+    }
+
     void onSampleRateChange(const SampleRateChangeEvent& e) override {
         lastSampleRate = 0.f; // force filter recalc
     }
@@ -264,21 +280,61 @@ struct GuitarAmp : Module {
 // Panel / UI
 // ---------------------------------------------------------------------------
 
-struct LogoWidget : SvgWidget {
-    GuitarAmp* module;
-    LogoWidget(GuitarAmp* module) {
-        this->module = module;
-        setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/LogoLight.svg")));
+struct LogoLight : GreenLight {
+    struct LogoSvgWidget : SvgWidget {
+        LogoLight* light;
+        void draw(const DrawArgs& args) override {}
+        void drawLayer(const DrawArgs& args, int layer) override {
+            if (layer == 1) {
+                if (!light->module) return;
+                float b = light->module->lights[light->firstLightId].getBrightness();
+                if (b <= 0.01f) return;
+                nvgSave(args.vg);
+                nvgGlobalCompositeBlendFunc(args.vg, NVG_SRC_ALPHA, NVG_ONE); // Additive
+                
+                // 1. Draw core bright SVG
+                nvgGlobalAlpha(args.vg, b * 0.85f);
+                SvgWidget::draw(args);
+
+                // 2. Draw tight inner glow (radius 3)
+                nvgGlobalAlpha(args.vg, b * 0.2f);
+                for (int i = 0; i < 8; i++) {
+                    float r = (i / 8.0f) * 2 * M_PI;
+                    nvgSave(args.vg);
+                    nvgTranslate(args.vg, std::cos(r) * 3.0f, std::sin(r) * 3.0f);
+                    SvgWidget::draw(args);
+                    nvgRestore(args.vg);
+                }
+
+                // 3. Draw pronounced outer glow (radius 7)
+                nvgGlobalAlpha(args.vg, b * 0.08f);
+                for (int i = 0; i < 8; i++) {
+                    float r = (i / 8.0f) * 2 * M_PI;
+                    nvgSave(args.vg);
+                    nvgTranslate(args.vg, std::cos(r) * 7.0f, std::sin(r) * 7.0f);
+                    SvgWidget::draw(args);
+                    nvgRestore(args.vg);
+                }
+
+                nvgRestore(args.vg);
+            }
+            Widget::drawLayer(args, layer);
+        }
+    };
+
+    LogoSvgWidget* sw;
+
+    LogoLight() {
+        sw = new LogoSvgWidget;
+        sw->light = this;
+        sw->setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/LogoLight.svg")));
+        this->box.size = sw->box.size;
+        this->addChild(sw);
     }
-    void draw(const DrawArgs& args) override {
-        if (!module) return;
-        float b = module->lights[GuitarAmp::LOGO_LIGHT].getBrightness();
-        if (b <= 0.01f) return;
-        nvgSave(args.vg);
-        nvgGlobalAlpha(args.vg, b);
-        SvgWidget::draw(args);
-        nvgRestore(args.vg);
-    }
+
+    void drawBackground(const widget::Widget::DrawArgs& args) override {}
+    void drawLight(const widget::Widget::DrawArgs& args) override {}
+    void drawHalo(const widget::Widget::DrawArgs& args) override {}
 };
 
 struct GuitarAmpWidget : ModuleWidget {
@@ -286,11 +342,7 @@ struct GuitarAmpWidget : ModuleWidget {
         setModule(module);
         setPanel(createPanel(asset::plugin(pluginInstance, "res/GuitarAmp.svg")));
 
-        if (module) {
-            LogoWidget* logo = new LogoWidget(module);
-            logo->box.pos = Vec(0, 0);
-            addChild(logo);
-        }
+        addChild(createLight<LogoLight>(Vec(0, 0), module, GuitarAmp::LOGO_LIGHT));
 
         addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
         addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));

@@ -13,7 +13,6 @@ struct Shimmer {
     std::vector<float> buffer;
     int writePos = 0;
     float phase = 0.f;
-    float feedback = 0.6f;
     float lastOut = 0.f;
     float currentDelaySamples = 0.f;
     float peakEnv = 0.f;
