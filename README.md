@@ -88,13 +88,7 @@ Or from inside the project directory:
 ./build.sh
 ```
 
-The script is equivalent to:
-
-```bash
-cd ~/Documents/Coding\ Projects/vcv\ rack\ guitar\ interface && \
-RACK_DIR=~/rack-sdk-2/Rack-SDK make && \
-cp dist/*.vcvplugin ~/Documents/Rack2/plugins-mac-arm64/
-```
+The script is equivalent to running `make install` and manually copying the contents of `dist/$SLUG/` directly into `~/Documents/Rack2/plugins-mac-arm64/$SLUG/`. It also features a colorful output to track progress.
 
 ---
 
@@ -104,13 +98,20 @@ cp dist/*.vcvplugin ~/Documents/Rack2/plugins-mac-arm64/
 vcv rack guitar interface/
 ├── README.md
 ├── Makefile
+├── build.sh             — colorful build script
 ├── plugin.json          — plugin manifest (slug, version, module list)
 ├── res/
-│   └── GuitarFX.svg     — panel graphic (placeholder, to be designed)
+│   ├── GuitarAmp.svg    — main UI panel graphic
+│   └── LogoLight.svg    — dynamic logo glow layer
 └── src/
-    ├── plugin.hpp        — shared types and externs
-    ├── plugin.cpp        — plugin entry point / module registration
-    └── GuitarFX.cpp      — all DSP (biquad filters, waveshaper, gate, cab sim) + UI layout
+    ├── plugin.hpp       — shared types and externs
+    ├── plugin.cpp       — plugin entry point / module registration
+    ├── GuitarAmp.cpp    — module entry point & UI layout
+    ├── Shimmer.hpp      — stereo shimmer reverb DSP
+    ├── CabinetSim.hpp   — cabinet simulator DSP
+    ├── Drive.hpp        — overdrive/distortion/fuzz DSP
+    ├── NoiseGate.hpp    — noise gate DSP
+    └── Biquad.hpp       — biquad filter implementation
 ```
 
 **Build artifacts** (not committed, safe to delete and regenerate):
@@ -126,7 +127,7 @@ vcv rack guitar interface/
 Audio In → Noise Gate → Waveshaper (Overdrive / Distortion / Fuzz)
          → 3-Band EQ (Bass / Mid / Treble)
          → Cabinet Sim (filter approximation)
-         → Shimmer Reverb (Pitch-shifted feedback delay + Tone filter)
-         → Volume → Audio Out
+         → Shimmer Reverb (Stereo Pitch-shifted feedback delay + Tone filter)
+         → Volume → Audio Out (Left / Right)
                   → Gate CV Out (10V when gate is open)
 ```
