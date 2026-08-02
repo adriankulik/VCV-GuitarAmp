@@ -2,7 +2,7 @@
   "slug": "GuitarAmp",
   "name": "GuitarAmp",
   "version": "2.6.0",
-  "license": "MIT",
+  "license": "GPL-3.0",
   "brand": "Adrian Kulik",
   "author": "Adrian Kulik",
   "authorEmail": "adriankulik93@gmail.com",
@@ -17,13 +17,7 @@
       "slug": "GuitarAmpEffects",
       "name": "Guitar Amp & Effects",
       "description": "Guitar amp and effect eurorack for VCV Rack: amp sim, cabinet, distortion, fuzz, shimmer, noise gate, EQ",
-      "tags": [
-        "Effect",
-        "Distortion",
-        "Equalizer",
-        "Dynamics",
-        "Reverb"
-      ]
+      "tags": ["Effect", "Distortion", "Equalizer", "Dynamics", "Reverb"]
     }
   ]
 }

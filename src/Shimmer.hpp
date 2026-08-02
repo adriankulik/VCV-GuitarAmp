@@ -55,8 +55,9 @@ struct Allpass {
         if (readPos < 0) readPos += buffer.size();
         
         float delayed = buffer[readPos];
-        float out = -gain * in + delayed;
-        buffer[writePos] = in + gain * delayed;
+        float v = in + gain * delayed;
+        float out = -gain * v + delayed;
+        buffer[writePos] = v;
         
         writePos++;
         if (writePos >= (int)buffer.size()) writePos = 0;
@@ -70,14 +71,16 @@ struct Allpass {
 struct ModDelayLine {
     std::vector<float> buffer;
     int writePos = 0;
-    float lengthSamples = 0.f;
+    float baseLengthSamples = 0.f;
+    float maxLengthSamples = 0.f;
     float lfoPhase = 0.f;
     float lfoFreq = 1.f;
     float lfoDepth = 1.f;
 
     void init(float lengthMs, float lfoF, float lfoD, float sr) {
-        lengthSamples = lengthMs * 0.001f * sr;
-        buffer.assign((size_t)(lengthSamples + sr * 0.1f), 0.f); // Extra room for modulation
+        baseLengthSamples = lengthMs * 0.001f * sr;
+        maxLengthSamples = baseLengthSamples * 2.0f; // Allow up to 2x size
+        buffer.assign((size_t)(maxLengthSamples + sr * 0.1f), 0.f); 
         lfoFreq = lfoF / sr;
         lfoDepth = lfoD;
         writePos = 0;
@@ -91,14 +94,16 @@ struct ModDelayLine {
         if (writePos >= (int)buffer.size()) writePos = 0;
     }
 
-    float read() {
+    float read(float sizeScalar) {
         if (buffer.empty()) return 0.f;
         
         lfoPhase += lfoFreq;
         if (lfoPhase >= 1.f) lfoPhase -= 1.f;
         
+        // Slow, deep modulation
         float mod = std::sin(2.f * M_PI * lfoPhase) * lfoDepth;
-        float readPos = (float)writePos - lengthSamples - mod;
+        float currentLength = baseLengthSamples * sizeScalar;
+        float readPos = (float)writePos - currentLength - mod;
         
         int size = buffer.size();
         while (readPos < 0) readPos += size;
@@ -106,13 +111,28 @@ struct ModDelayLine {
         
         int idx1 = (int)readPos;
         int idx2 = (idx1 + 1) % size;
-        float frac = readPos - idx1;
-        return buffer[idx1] * (1.f - frac) + buffer[idx2] * frac;
+        int idx0 = (idx1 - 1 + size) % size;
+        int idx3 = (idx2 + 1) % size;
+        
+        float frac = readPos - (float)idx1;
+        
+        // Hermite Interpolation (Preserves high frequencies)
+        float y0 = buffer[idx0];
+        float y1 = buffer[idx1];
+        float y2 = buffer[idx2];
+        float y3 = buffer[idx3];
+        
+        float c0 = y1;
+        float c1 = 0.5f * (y2 - y0);
+        float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
+        float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+        
+        return ((c3 * frac + c2) * frac + c1) * frac + c0;
     }
 };
 
 // ---------------------------------------------------------------------------
-// 4-Voice Granular Pitch Shifter (+1 Octave)
+// 4-Voice Granular Pitch Shifter (Variable Shift)
 // ---------------------------------------------------------------------------
 struct PitchShifter {
     std::vector<float> buffer;
@@ -122,12 +142,12 @@ struct PitchShifter {
 
     void init(float sr) {
         buffer.assign((size_t)(sr * 0.1f), 0.f);
-        grainSize = sr * 0.025f; // 25ms grains for tight tracking
+        grainSize = sr * 0.085f; // 85ms grains for much smoother shimmer clouds
         writePos = 0;
         phase = 0.f;
     }
 
-    float process(float in) {
+    float process(float in, float shiftSemitones) {
         if (buffer.empty()) return in;
         int size = buffer.size();
         buffer[writePos] = in;
@@ -136,8 +156,12 @@ struct PitchShifter {
         phase += rate;
         if (phase >= 1.0f) phase -= 1.0f;
         
+        float pitchRatio = std::pow(2.0f, shiftSemitones / 12.0f);
+        float D = (pitchRatio - 1.0f) * grainSize;
+        float offset = (D < 0.f) ? -D : 0.f; // Guarantee causal reading
+        
         auto readInterp = [&](float p) {
-            float distance = (1.0f - p) * grainSize;
+            float distance = (1.0f - p) * D + offset;
             float readPos = (float)writePos - distance;
             while (readPos < 0) readPos += size;
             while (readPos >= size) readPos -= size;
@@ -177,6 +201,7 @@ struct PitchShifter {
 struct Shimmer {
     ModDelayLine d1, d2, d3, d4;
     Allpass ap1, ap2;
+    Allpass tankAp1, tankAp2, tankAp3, tankAp4;
     OnePoleLPF damp1, damp2, damp3, damp4;
     OnePoleLPF bandPassLpf;
     OnePoleHPF bandPassHpf;
@@ -189,22 +214,27 @@ struct Shimmer {
     void setSampleRate(float sr) {
         sampleRate = sr;
         
-        // FDN delay lengths in ms (mutually prime to prevent ringing)
-        // Includes slow, deep LFO modulation for chorusing/blurring the tail
-        d1.init(37.3f, 0.73f, 15.f, sr);
-        d2.init(41.1f, 0.91f, 15.f, sr);
-        d3.init(43.9f, 1.13f, 15.f, sr);
-        d4.init(47.7f, 1.37f, 15.f, sr);
+        // 1. MASSIVELY longer FDN delay lengths (Primes)
+        d1.init(113.1f, 0.73f, 15.f, sr);
+        d2.init(151.3f, 0.91f, 15.f, sr);
+        d3.init(173.9f, 1.13f, 15.f, sr);
+        d4.init(199.7f, 1.37f, 15.f, sr);
         
-        // Input diffusers
-        ap1.init(5.3f, 0.6f, sr);
-        ap2.init(8.7f, 0.6f, sr);
+        // 2. Input diffusers
+        ap1.init(13.3f, 0.6f, sr);
+        ap2.init(19.7f, 0.6f, sr);
 
-        pitch.init(sr);
+        // 3. TANK Diffusers (Crucial for smearing pitch grains)
+        tankAp1.init(23.3f, 0.6f, sr);
+        tankAp2.init(29.7f, 0.6f, sr);
+        tankAp3.init(31.1f, 0.6f, sr);
+        tankAp4.init(37.3f, 0.6f, sr);
+
+        pitch.init(sr); // 85ms grains in PitchShifter
         
-        // Strict Shimmer Bandpass (Filters out low mud and high metallic fizz)
-        bandPassLpf.setCutoff(3000.f, sr);
-        bandPassHpf.setCutoff(500.f, sr);
+        // Strict Shimmer Bandpass
+        bandPassLpf.setCutoff(4000.f, sr);
+        bandPassHpf.setCutoff(150.f, sr); // Lowered HPF to let fundamentals through
     }
     
     void reset() {
@@ -214,14 +244,16 @@ struct Shimmer {
         std::fill(d4.buffer.begin(), d4.buffer.end(), 0.f);
         std::fill(ap1.buffer.begin(), ap1.buffer.end(), 0.f);
         std::fill(ap2.buffer.begin(), ap2.buffer.end(), 0.f);
+        std::fill(tankAp1.buffer.begin(), tankAp1.buffer.end(), 0.f);
+        std::fill(tankAp2.buffer.begin(), tankAp2.buffer.end(), 0.f);
+        std::fill(tankAp3.buffer.begin(), tankAp3.buffer.end(), 0.f);
+        std::fill(tankAp4.buffer.begin(), tankAp4.buffer.end(), 0.f);
         std::fill(pitch.buffer.begin(), pitch.buffer.end(), 0.f);
         peakEnv = 0.f;
         attackState = 0.f;
     }
 
-    float process(float in, float shimmerMix, float decay, float tone, float delaySamples, float attackTime) {
-        // (delaySamples is ignored because this is now a dedicated FDN reverb tank, not a delay line)
-        
+    std::pair<float, float> process(float in, float shimmerMix, float decay, float sizeParam, float toneParam, float attackTime) {
         // 1. Swell envelope processing for the shimmer input
         float absIn = std::abs(in);
         if (absIn > peakEnv) peakEnv += 0.1f * (absIn - peakEnv);
@@ -245,42 +277,59 @@ struct Shimmer {
         shimmerIn = ap1.process(shimmerIn);
         shimmerIn = ap2.process(shimmerIn);
         
-        // 3. Reverb Damping (controlled by the Tone knob)
-        float dampFreq = 500.f + tone * 12000.f;
+        // 3. Reverb Damping (Controlled by Tone param to reduce metallic resonances)
+        float dampFreq = 1000.f + toneParam * 11000.f;
         damp1.setCutoff(dampFreq, sampleRate);
         damp2.setCutoff(dampFreq, sampleRate);
         damp3.setCutoff(dampFreq, sampleRate);
         damp4.setCutoff(dampFreq, sampleRate);
 
-        // 4. Read from the FDN Delay Lines
-        float o1 = d1.read();
-        float o2 = d2.read();
-        float o3 = d3.read();
-        float o4 = d4.read();
+        // Map Size knob (0..1) to size multiplier (0.1x to 2.0x)
+        float sizeScalar = 0.1f + sizeParam * 1.9f;
 
-        // 5. Create a mix for the Pitch Shifter, then bandpass and saturate it
-        float fdnMix = (o1 + o2 + o3 + o4) * 0.25f;
-        
-        float pitched = pitch.process(fdnMix);
+        // 4. Read from the FDN Delay Lines with interpolated size changes
+        float o1 = d1.read(sizeScalar);
+        float o2 = d2.read(sizeScalar);
+        float o3 = d3.read(sizeScalar);
+        float o4 = d4.read(sizeScalar);
+
+        // Diffuse inside the tank BEFORE the pitch shifter
+        o1 = tankAp1.process(o1);
+        o2 = tankAp2.process(o2);
+        o3 = tankAp3.process(o3);
+        o4 = tankAp4.process(o4);
+
+        // 5. Pitch shift one of the tank lines (o1) to create the shimmer safely (fixed at +1 octave)
+        float pitched = pitch.process(o1, 12.f);
         pitched = bandPassHpf.process(pitched);
         pitched = bandPassLpf.process(pitched);
         pitched = std::tanh(pitched / 5.f) * 5.f; // Safety clipping
+        
+        // REPLACES o1 to keep feedback matrix perfectly orthogonal!
+        o1 = pitched; 
+        
 
         // 6. Hadamard Feedback Matrix (Lossless energy scattering)
         float decayAmt = decay * 0.98f; // Max decay is slightly below 1.0 to guarantee stability
         
-        float in1 = shimmerIn + pitched + (o1 + o2 + o3 + o4) * 0.5f * decayAmt;
-        float in2 = shimmerIn + pitched + (o1 - o2 + o3 - o4) * 0.5f * decayAmt;
-        float in3 = shimmerIn + pitched + (o1 + o2 - o3 - o4) * 0.5f * decayAmt;
-        float in4 = shimmerIn + pitched + (o1 - o2 - o3 + o4) * 0.5f * decayAmt;
+        // Standard Hadamard Matrix
+        float in1 = shimmerIn + (o1 + o2 + o3 + o4) * 0.5f * decayAmt;
+        float in2 = shimmerIn + (o1 - o2 + o3 - o4) * 0.5f * decayAmt;
+        float in3 = shimmerIn + (o1 + o2 - o3 - o4) * 0.5f * decayAmt;
+        float in4 = shimmerIn + (o1 - o2 - o3 + o4) * 0.5f * decayAmt;
         
         // 7. Write back into the Delay Lines with damping and denormal-prevention
-        d1.write(damp1.process(in1) + 1e-9f);
-        d2.write(damp2.process(in2) + 1e-9f);
-        d3.write(damp3.process(in3) + 1e-9f);
-        d4.write(damp4.process(in4) + 1e-9f);
+        static float antiDenormal = 1e-9f;
+        antiDenormal = -antiDenormal;
 
-        // Mix the washed-out FDN tail back with the dry signal
-        return in + fdnMix * shimmerMix;
+        d1.write(damp1.process(in1) + antiDenormal);
+        d2.write(damp2.process(in2) + antiDenormal);
+        d3.write(damp3.process(in3) + antiDenormal);
+        d4.write(damp4.process(in4) + antiDenormal);
+
+        // Mix the washed-out FDN tail back with the dry signal, panned for stereo width
+        float outL = in + (o1 + o3) * shimmerMix;
+        float outR = in + (o2 + o4) * shimmerMix;
+        return {outL, outR};
     }
 };
