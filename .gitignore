@@ -29,3 +29,6 @@ tmp/
 
 # Test binaries
 test_dsp
+
+# Node.js
+node_modules/
