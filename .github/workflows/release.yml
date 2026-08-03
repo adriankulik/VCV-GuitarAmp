@@ -28,8 +28,7 @@ jobs:
           node-version: "22.x"
 
       - name: Install dependencies
-        working-directory: .github
-        run: npm ci
+        run: npm install -g semantic-release @semantic-release/exec @semantic-release/git @semantic-release/github @semantic-release/commit-analyzer @semantic-release/release-notes-generator
 
       - name: Setup VCV Rack SDK
         run: |
@@ -41,6 +40,6 @@ jobs:
 
       - name: Semantic Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           NPM_CONFIG_PROVENANCE: true
-        run: npm --prefix .github exec -- semantic-release --extends ./.github/.releaserc.json
+        run: npx semantic-release --extends ./.github/.releaserc.json
