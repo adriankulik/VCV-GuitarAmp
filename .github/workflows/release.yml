@@ -28,7 +28,7 @@ jobs:
           node-version: "22.x"
 
       - name: Install dependencies
-        run: npm install -g semantic-release @semantic-release/exec @semantic-release/git @semantic-release/github @semantic-release/commit-analyzer @semantic-release/release-notes-generator
+        run: npm install --no-save semantic-release @semantic-release/exec @semantic-release/git @semantic-release/github @semantic-release/commit-analyzer @semantic-release/release-notes-generator
 
       - name: Setup VCV Rack SDK
         run: |
