@@ -2,7 +2,8 @@
 
 Guitar pickup processor module for VCV Rack 2. Includes noise gate, overdrive/distortion/fuzz, 3-band EQ, cabinet simulation, and shimmer reverb.
 
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/qmLenLN6ru0?si=03wdj5ziaiwQmbDM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+*Click the image below to watch the demo video!*<br>
+[![Demo Video](https://img.youtube.com/vi/qmLenLN6ru0/0.jpg)](https://www.youtube.com/watch?v=qmLenLN6ru0)
 
 ---
 
