@@ -1,6 +1,10 @@
 # Guitar Amp & Effects Plugin
 
-Guitar pickup processor module for VCV Rack 2. Includes noise gate, overdrive/distortion/fuzz, 3-band EQ, and cabinet simulation.
+Guitar pickup processor module for VCV Rack 2. Includes noise gate, overdrive/distortion/fuzz, 3-band EQ, cabinet simulation, and shimmer reverb.
+
+*Watch the demo video below:*<br>
+
+https://github.com/user-attachments/assets/86d8d1fe-ac6b-4cb8-9e84-8b27e1f953cc
 
 ---
 
@@ -131,3 +135,7 @@ Audio In → Noise Gate → Waveshaper (Overdrive / Distortion / Fuzz)
          → Volume → Audio Out (Left / Right)
                   → Gate CV Out (10V when gate is open)
 ```
+
+---
+
+<img width="100%" alt="Screenshot 2026-08-16 at 00 22 36" src="https://github.com/user-attachments/assets/e257b546-45f9-4ebf-b31a-b21f7fce1fa9" />
