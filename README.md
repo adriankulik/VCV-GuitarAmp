@@ -136,4 +136,6 @@ Audio In → Noise Gate → Waveshaper (Overdrive / Distortion / Fuzz)
                   → Gate CV Out (10V when gate is open)
 ```
 
-<img width="684" height="897" alt="Screenshot 2026-08-16 at 00 22 36" src="https://github.com/user-attachments/assets/e257b546-45f9-4ebf-b31a-b21f7fce1fa9" />
+---
+
+<img width="100%" alt="Screenshot 2026-08-16 at 00 22 36" src="https://github.com/user-attachments/assets/e257b546-45f9-4ebf-b31a-b21f7fce1fa9" />
