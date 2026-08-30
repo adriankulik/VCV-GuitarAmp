@@ -4,7 +4,7 @@ Guitar pickup processor module for VCV Rack 2. Includes noise gate, overdrive/di
 
 *Watch the demo video below:*<br>
 
-https://github.com/user-attachments/assets/86d8d1fe-ac6b-4cb8-9e84-8b27e1f953cc
+https://github.com/user-attachments/assets/51b80840-7b02-4d7e-8248-1f2a4529a673
 
 ---
 
