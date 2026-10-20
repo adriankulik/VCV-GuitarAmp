@@ -312,12 +312,12 @@ struct GuitarAmpWidget : ModuleWidget {
         addParam(createParamCentered<RoundBlackKnob>(Vec(80.0f, Y_DRIVE), module, GuitarAmp::DRIVE_PARAM));
         addParam(createParamCentered<CKSSThree>    (Vec(225.0f, Y_DRIVE), module, GuitarAmp::DRIVE_MODE_PARAM));
 
-        // SHIMMER (Mix, Delay, Attack, Decay, Tone)
+        // SHIMMER (Mix, Tone, Attack, Decay, Delay)
         addParam(createParamCentered<RoundBlackKnob>(Vec(26.0f, Y_SHIMMER), module, GuitarAmp::SHIMMER_MIX_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>(Vec(81.0f, Y_SHIMMER), module, GuitarAmp::SHIMMER_DELAY_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(81.0f, Y_SHIMMER), module, GuitarAmp::SHIMMER_TONE_PARAM));
         addParam(createParamCentered<RoundBlackKnob>(Vec(136.0f, Y_SHIMMER), module, GuitarAmp::SHIMMER_ATTACK_PARAM));
         addParam(createParamCentered<RoundBlackKnob>(Vec(190.0f, Y_SHIMMER), module, GuitarAmp::SHIMMER_DECAY_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>(Vec(244.0f, Y_SHIMMER), module, GuitarAmp::SHIMMER_TONE_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(Vec(244.0f, Y_SHIMMER), module, GuitarAmp::SHIMMER_DELAY_PARAM));
 
         // EQ (Bass, Mid, Treble)
         addParam(createParamCentered<RoundBlackKnob>(Vec(55.0f, Y_EQ), module, GuitarAmp::EQ_BASS_PARAM));
