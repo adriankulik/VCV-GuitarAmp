@@ -2,6 +2,8 @@
 
 Guitar pickup processor module for VCV Rack 2. Includes noise gate, overdrive/distortion/fuzz, 3-band EQ, cabinet simulation, and shimmer reverb.
 
+Available in the official [VCV Rack Library](https://library.vcvrack.com/AdrianKulik/GuitarAmpEffects).
+
 *Watch the demo video below:*<br>
 
 https://github.com/user-attachments/assets/51b80840-7b02-4d7e-8248-1f2a4529a673
@@ -9,6 +11,17 @@ https://github.com/user-attachments/assets/51b80840-7b02-4d7e-8248-1f2a4529a673
 ---
 
 ## Installation
+
+### VCV Rack Library (Recommended)
+
+Guitar Amp & Effects is available in the official [VCV Rack Library](https://library.vcvrack.com/AdrianKulik/GuitarAmpEffects):
+
+1. Subscribe to / add **Guitar Amp & Effects** on the [VCV Rack Library](https://library.vcvrack.com/AdrianKulik/GuitarAmpEffects) page.
+2. Open VCV Rack 2 and select **Library > Update all** from the menu.
+3. Restart VCV Rack 2 if prompted.
+4. Right-click the rack → Add Module → Search for **Guitar Amp & Effects**.
+
+### Manual Installation
 
 1. Download the latest `.vcvplugin` release from the [Releases page](https://github.com/adriankulik/vcv-rack-guitar-interface/releases).
 2. Open VCV Rack 2.
